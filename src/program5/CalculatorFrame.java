@@ -11,6 +11,7 @@ import java.awt.event.ActionListener;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -24,8 +25,9 @@ class CalculatorFrame extends JFrame{
     private JTextField calcBar;
     private JPanel panel1, panel2, panel3;
     private int operation = -1; // 0 = plus, 1 = minus, 2 = times, 3 = divided by
-    private BigDecimal memory = BigDecimal.ZERO;
+    private BigDecimal answer = BigDecimal.ZERO;
     private boolean firstOperation = true;
+    private boolean reset = true;
     
     public CalculatorFrame(String title)
     {
@@ -89,13 +91,17 @@ class CalculatorFrame extends JFrame{
             buttons[3].setText("/");
             buttons[3].addActionListener(new OperationExecuted());
             buttons[4].setText("sqrt");
+            buttons[4].addActionListener(new TextboxChanger());
             buttons[8].setText("*");
             buttons[8].addActionListener(new OperationExecuted());
             buttons[9].setText("%");
+            buttons[9].addActionListener(new TextboxChanger());
             buttons[13].setText("-");
             buttons[13].addActionListener(new OperationExecuted());
             buttons[14].setText("1/x");
+            buttons[14].addActionListener(new TextboxChanger());
             buttons[15].setText("0");
+            buttons[15].addActionListener(new TextboxAdder());
             buttons[16].setText("-/+");
             buttons[16].addActionListener(new TextboxAdder());
             buttons[17].setText(".");
@@ -128,10 +134,11 @@ class CalculatorFrame extends JFrame{
             
             buttons[0].setText("Backspace");
             buttons[0].setMargin(new Insets(0,0,0,0));
+            buttons[0].addActionListener(new TextboxRemover());
             buttons[1].setText("CE");
             buttons[1].addActionListener(new TextboxRemover());
             buttons[2].setText("C");
-            buttons[1].addActionListener(new TextboxRemover());
+            buttons[2].addActionListener(new TextboxRemover());
             
             for (JButton button : buttons) {
                 add(button);
@@ -162,15 +169,53 @@ class CalculatorFrame extends JFrame{
             }
             
             buttons[0].setText("MC");
+            buttons[0].addActionListener(new MemoryOperation());
             buttons[1].setText("MR");
+            buttons[1].addActionListener(new MemoryOperation());
             buttons[2].setText("MS");
+            buttons[2].addActionListener(new MemoryOperation());
             buttons[3].setText("M+");
+            buttons[3].addActionListener(new MemoryOperation());
             
             add(memoryHolder);
             for (JButton button : buttons) {
                 add(button);
             }
             
+        }
+    }
+    
+    public class TextboxChanger implements ActionListener
+    {
+        public void actionPerformed(ActionEvent e) 
+        {
+            JButton button = (JButton)(e.getSource());
+            BigDecimal input = new BigDecimal(Double.parseDouble(calcBar.getText()));
+            if(button.getText().equals("sqrt"))
+            {
+                DecimalFormat df = new DecimalFormat("0.####################");
+                calcBar.setText(df.format(Math.sqrt(Integer.parseInt(calcBar.getText()))));
+                reset = true;
+            }
+            else if(button.getText().equals("%"))
+            {
+                DecimalFormat df = new DecimalFormat("0.########################################");
+                calcBar.setText(df.format(input.divide(new BigDecimal(100))));
+                reset = true;
+            }
+            else if(button.getText().equals("1/x"))
+            {
+                if(calcBar.getText().equals("0"))
+                {
+                    calcBar.setText("Undefined");
+                }
+                else
+                {
+                    DecimalFormat df = new DecimalFormat("0.########################################");
+                    calcBar.setText(df.format(BigDecimal.ONE.divide(input, 40, RoundingMode.FLOOR)));
+                }
+                reset = true;
+            }
         }
     }
     
@@ -182,18 +227,40 @@ class CalculatorFrame extends JFrame{
             JButton button = (JButton)(e.getSource());
             if(button.getText().equals("-/+"))
             {
-                if(calcBar.getText().contains("-"))
+                if(reset)
                 {
-                    calcBar.setText(calcBar.getText().substring(1));
+                    if(calcBar.getText().contains("-"))
+                    {
+                        calcBar.setText("0");
+                    }
+                    else
+                    {
+                        calcBar.setText("-0");
+                    }
                 }
                 else
                 {
-                    calcBar.setText("-" + calcBar.getText());
+                    if(calcBar.getText().contains("-"))
+                    {
+                        calcBar.setText(calcBar.getText().substring(1));
+                    }
+                    else
+                    {
+                        calcBar.setText("-" + calcBar.getText());
+                    }
                 }
             }
-            else if(!button.getText().equals(".") || !calcBar.getText().contains("."))
+            else if((!button.getText().equals(".") || !calcBar.getText().contains(".")) || (button.getText().equals("0") && !calcBar.getText().contains("0")))
             {
-                calcBar.setText(calcBar.getText() + button.getText());
+                if(reset)
+                {
+                    calcBar.setText(button.getText());
+                    reset = false;
+                }
+                else
+                {
+                    calcBar.setText(calcBar.getText() + button.getText());
+                }
             }
         }
     }
@@ -204,12 +271,25 @@ class CalculatorFrame extends JFrame{
         public void actionPerformed(ActionEvent e) 
         {
             JButton button = (JButton)(e.getSource());
-            calcBar.setText("");
             if(button.getText().equals("C"))
             {
-                panel3.getComponent(0);
+                calcBar.setText("");
+                answer = BigDecimal.ZERO;
+                
+            }
+            else if(button.getText().equals("Backspace"))
+            {
+                
             }
         }
+    }
+    
+    public class MemoryOperation implements ActionListener
+    {
+        @Override
+        public void actionPerformed(ActionEvent ae) {
+        }
+        
     }
     
     public class OperationExecuted implements ActionListener
@@ -220,19 +300,19 @@ class CalculatorFrame extends JFrame{
             JButton button = (JButton)(e.getSource());
             if(button.getText().equals("+"))
             {
-                insertToMemory(0);
+                storeAnswer(0);
             }
             else if(button.getText().equals("-"))
             {
-                insertToMemory(1);
+                storeAnswer(1);
             }
             else if(button.getText().equals("*"))
             {
-                insertToMemory(2);
+                storeAnswer(2);
             }
             else if(button.getText().equals("/"))
             {
-                insertToMemory(3);
+                storeAnswer(3);
             }
             else if(button.getText().equals("="))
             {
@@ -240,32 +320,33 @@ class CalculatorFrame extends JFrame{
                     switch(operation)
                     {
                         case(0):
-                            calcBar.setText(memory.add(new BigDecimal(calcBar.getText())).toString());
+                            calcBar.setText(answer.add(new BigDecimal(calcBar.getText())).toString());
                             break;
                         case(1):
-                            calcBar.setText(memory.subtract(new BigDecimal(calcBar.getText())).toString());
+                            calcBar.setText(answer.subtract(new BigDecimal(calcBar.getText())).toString());
                             break;
                         case(2):
-                            calcBar.setText(memory.multiply(new BigDecimal(calcBar.getText())).toString());
+                            calcBar.setText(answer.multiply(new BigDecimal(calcBar.getText())).toString());
                             break;
                         case(3):
-                            calcBar.setText(memory.divide(new BigDecimal(calcBar.getText()), 10, RoundingMode.CEILING).toString());
+                            calcBar.setText(answer.divide(new BigDecimal(calcBar.getText()), 20, RoundingMode.CEILING).toString());
                             break;
                     }
                 if(firstOperation)
                 {
-                    memory = new BigDecimal(temp);
+                    answer = new BigDecimal(temp);
                     firstOperation = false;
                 }
+                reset = true;
             }
         }
         
-        public void insertToMemory(int i)
+        public void storeAnswer(int i)
         {
             operation = i;
             try
             {
-                memory = new BigDecimal(calcBar.getText());
+                answer = new BigDecimal(calcBar.getText());
             }
             catch(NumberFormatException e)
             {
